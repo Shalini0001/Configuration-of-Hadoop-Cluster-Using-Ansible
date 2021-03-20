@@ -1,0 +1,90 @@
+- name: Configuring datanode using Ansible
+  hosts: datanode
+  vars_prompt:
+  - name: data_dir
+    prompt: "Enter datanode directory name"
+    private: no
+  - name: name_ip
+    prompt: " Enter namenode IP Address"
+    private: no
+
+  tasks:
+  - name: Uploading Hadoop Software
+    copy:
+      src: "/root/hadoop-1.2.1-1.x86_64.rpm"
+      dest: "/root/"
+
+  - name: Uploadingg JDK Software
+    copy:
+      src: "/root/jdk-8u171-linux-x64.rpm"
+      dest: "/root/"
+
+  - name: Installing JDk Software
+    shell: "rpm -i /root/jdk-8u171-linux-x64.rpm"
+    register: java
+
+  - name: Installing Hadoop Software
+    shell: "rpm -i /root/hadoop-1.2.1-1.x86_64.rpm --force"
+    register: hadoop
+
+  - name: Creation of Datanode directory
+    file:
+      path: "{{ data_dir }}"
+      state: directory
+    register: data_dir_output
+
+  - name: Configuring hdfs-site file
+    blockinfile:
+         path: "/etc/hadoop/hdfs-site.xml"
+         insertafter: "<configuration>"
+         block:
+            <property>
+            <name>dfs.data.dir</name>
+            <value>{{ data_dir }}</value>
+            </property>
+    register: hdfs
+
+  - name: Configuration core-site file
+    blockinfile:
+         path: "/etc/hadoop/core-site.xml"
+         insertafter: "<configuration>"
+         block:
+             <property>
+             <name>fs.default.name</name>
+             <value>hdfs://{{ name_ip }}:9001</value>
+            </property>
+    register: core
+
+  - name: Starting Datanode
+    shell: "hadoop-daemon.sh start datanode"
+    register: service
+  - debug:
+      var: service
+
+  - name: Datanode
+    shell: "jps"
+    register: jps
+  - debug:
+     var: jps.stdout_lines
+
+  - name: Hadoop Installation confirmed
+    debug:
+      var: hadoop
+
+  - name: Java Installation Confirmed
+    debug: 
+      var: java
+
+  - name: hdfs-site.xml Configuration file
+    debug:
+      var: hdfs
+
+  - name: core-site.xml Configuration file
+    debug:
+      var: core
+
+  - name: Checking hadoop cluster report
+    shell: "hadoop dfsadmin -report"
+    register: report
+  - debug:
+      var: report
